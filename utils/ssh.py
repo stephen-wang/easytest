@@ -99,7 +99,7 @@ class SSHServer(paramiko.server.ServerInterface):
 
     _MAX_MSG_SIZE_ = 2048 
     _DEFAULT_USERNAME_ = 'easytestagent'
-    _DEFAULT_PASSWORD = 'syncme'
+    _DEFAULT_PASSWORD_ = 'syncme'
 
     def __init__(self, msg_handler, port=17258):
         self.msg_handler = msg_handler
@@ -111,35 +111,39 @@ class SSHServer(paramiko.server.ServerInterface):
         self.chan_lock = threading.Lock()
         self._exit = False
 
-    def start(self):
+    def execute(self):
         self.sock_thread = threading.Thread(target=self.handle_connect_req)
         self.sock_thread.setDaemon(True)
         self.sock_thread.start()
 
-        self.chan_thread = threading.Thread(target=self.handle_sync_req)
+        self.chan_thread = threading.Thread(target=self.process_msg)
         self.chan_thread.setDaemon(True)
         self.chan_thread.start()
 
-        print('Server is listening on *.*.*.*:{}'.format(self.port))
+        print('Server is listening on *.*:{}'.format(self.port))
         self.sock_thread.join()
         self.chan_thread.join()
 
     def stop(self):
         self._exit = True
 
-    def handle_message(self):
+    def response_msg(self, chan, msg):
+        if chan and chan.send_ready():
+            chan.send(msg)
+
+    def process_msg(self):
         while True:
             need_sleep = True 
             self.chan_lock.acquire()
-            for transport in self.chans.keys():
+            for transport in list(self.chans.keys()):
                 if not transport.is_active():
-                    del self.chans[transport]
+                    self.chans.pop(transport)
                     continue
                 
                 chan = self.chans[transport]
                 if chan and chan.recv_ready():
                     msg = chan.recv(self._MAX_MSG_SIZE_)
-                    self.msg_handler(chan, msg)
+                    self.msg_handler(self, chan, msg)
                     need_sleep = False
 
             self.chan_lock.release()
@@ -152,13 +156,14 @@ class SSHServer(paramiko.server.ServerInterface):
 
         # Close all active tranports/channels
         self.chan_lock.acquire()
-        for transport in self.chans.keys():
+        for transport in list(self.chans.keys()):
             if transport and transport.is_active():
                 transport.close()
             del self.chans[transport]
 
     def handle_connect_req(self):
         listensock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listensock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listensock.bind(('', self.port))
         listensock.listen(5)
 
@@ -170,7 +175,7 @@ class SSHServer(paramiko.server.ServerInterface):
                 if self._exit:
                     break
                 else:
-                    pass
+                    continue 
             except Exception as e:
                 break
 
@@ -183,7 +188,7 @@ class SSHServer(paramiko.server.ServerInterface):
             self.chans[transport] = chan
             self.chan_lock.release()
 
-        self.listensock.close()
+        listensock.close()
 
 
     def check_allowed_auths(self, username):

@@ -8,23 +8,26 @@ test result.
 import argparse
 import glob
 from os import path
+import random
 import subprocess
+import time
 
-from utils.exceptions import SessionBroeknError
+from utils.exceptions import SessionBrokenError
 from utils.ssh import SSHClient
 from utils.message import SyncMsg, AckMsg
+from utils.resultmgr import TestResult
 
 
-class EasytestAgent(client):
+class EasytestAgent(object):
     def __init__(self, server):
         self.server = server
         self.msg_id = 0
         self.client = None
 
     def connect(self):
-        random.srand(time())
+        random.seed(time.time())
         self.msg_id = random.randint(5000, 50000)
-        self.client = SSLClient(self.server)
+        self.client = SSHClient(self.server)
         self.client.connect()
         return self
 
@@ -38,7 +41,7 @@ class EasytestAgent(client):
         self.notify(msg.val, resp.val)
 
     def notify_test_done(self):
-        msg = SyncMsg('all', 'Done')
+        msg = SyncMsg('all', TestResult.FINISHED)
         resp = AckMsg(msg.msgid)
         self.notify(msg.val, resp.val)
 
@@ -47,7 +50,7 @@ class EasytestAgent(client):
         MAX_RETRIES = 3
 
         self.client.send(req)
-        self.client.recv(ack)
+        ack = self.client.recv()
         while retries < MAX_RETRIES and ack != expect_resp:
             self.client.send(req)
             self.client.recv(ack)
@@ -86,13 +89,13 @@ if __name__ == '__main__':
 
     search_path = path.join(args.testdir, '**/*.*')
     for testscript in glob.glob(search_path, recursive=True):
-        status = 'Running'
+        status = TestResult.RUNNING
         agent.update_test_progress(testscript, status)
         try:
             subprocess.check_output([testscript])
-            status = 'Success'
+            status = TestResult.FINISHED
         except Exception as e:
-            status = 'Failed'
+            status = TestResult.FAILED
         if args.sync:
             agent.update_test_progress(testscript, status)
-    agent.notify_test_done()
+    agent.notify_tests_done()

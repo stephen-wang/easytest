@@ -12,10 +12,10 @@ TEST_GROUP_ENABLED = 'enabled'
 TEST_GROUP_DISABLED = 'disabled' 
 
 
-class Testcase(object):
+class Testcase:
     """ Util class for storing charateristics of each test script. """
 
-    def __init__(self, filepath, groups=[], parallel=False, result=None):
+    def __init__(self, filepath, groups=[], parallel=False, result='NotRun'):
         self.script = filepath 
         self.groups = groups
         self.parallel = parallel 

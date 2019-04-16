@@ -50,7 +50,7 @@ class EnvMgr(object):
                 sftp.rename(path.join(agent_utils_dir, 'remoterun.py'),
                             path.join(agent_dir, 'remoterun.py'))
 
-        return agent_utils_dir
+        return agent_dir
 
     @staticmethod
     def deploy_tests(test_files, servers, username='stephenw',

@@ -4,8 +4,14 @@
 class MalformedScriptError(Exception):
     pass
 
+
 class InvalidArgumentError(Exception):
     pass
 
-class SessionBrokentError(Exception):
+
+class SessionBrokenError(Exception):
+    pass
+
+
+class IllegalResultError(Exception):
     pass
