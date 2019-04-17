@@ -1,15 +1,20 @@
 #!/usr/bin/python3
 
+import logging
 from os import path
 import threading
 import time
 
 from .envmgr import EnvMgr
 from .exceptions import InvalidArgumentError
+from .logger import get_logger
 from .message import SyncMsg
 from .resultmgr import ResultMgr
 from .ssh import SSSHClient, SSHServer
 from .testsetmgr import TestsetMgr
+
+
+logger = get_logger('TestMgr', level=logging.DEBUG)
 
 
 class TestMgr(object):
@@ -28,7 +33,7 @@ class TestMgr(object):
     def check_server_connectivity(self):
         """Check if requested server is reachable"""
 
-        print('Check connectivity of test servers')
+        logger.info('Check connectivity of test servers')
         invalid_servers = {} 
         for server in self.servers:
             try:
@@ -42,7 +47,7 @@ class TestMgr(object):
             raise InvalidArgumentError(msg)
 
     def start_daemon(self, msg_handler):
-        print('Start easytest daemon ...')
+        logger.info('Start easytest daemon ...')
         self.daemon = SSHServer(msg_handler=msg_handler)
         t = threading.Thread(target=self.daemon.execute)
         t.setDaemon(True)
@@ -80,13 +85,13 @@ class TestMgr(object):
         daemon_thread = self.start_daemon(result_mgr.sync_result)
 
         # Start to run tests on all test servers
-        print('Begin to run tests ...')
+        logger.info('Begin to run tests ...')
         for server in self.servers:
             agent_script = path.join(self.remote_agent_dir, 'remoterun.py')
             cmd = '{} --testdir {} --sync --server {}'.format(agent_script,
                                                              remote_test_dir,
                                                              socket.gethostname())
-            print('Start to run tests on {}, cmd:{}'.format(server, cmd))
+            logger.debug('Start to run tests on {}, cmd:{}'.format(server, cmd))
             with SSSHClient(server=server) as sshClient:
                 sshClient.exec_command('cd {}'.format(self.remote_agent_dir))
                 sshClient.exec_command('nohup {} &'.format(cmd))
@@ -95,7 +100,7 @@ class TestMgr(object):
         while result_mgr.not_run() > 0:
             time.sleep(2)
 
-        print('All tests are finished:', result_mgr.info())
+        logger.info('All tests are finished: %s', result_mgr.info())
 
         # Stop easytest daemon and exit
         self.stop_daemon(daemon_thread)

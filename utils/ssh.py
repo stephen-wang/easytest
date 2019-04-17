@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import logging
 import paramiko
 import re
 import socket
@@ -7,6 +8,9 @@ import threading
 import time
 
 from .message import AckMsg
+from .logger import get_logger
+
+
 
 
 class SftpClient(object):
@@ -17,6 +21,7 @@ class SftpClient(object):
         self.username = username
         self.password = password
         self.sftp = None
+        self.logger = get_logger('SftpClient', level=logging.DEBUG)
 
     def open_session(self):
         t = paramiko.Transport((self.server, self.port))
@@ -24,12 +29,12 @@ class SftpClient(object):
         return paramiko.SFTPClient.from_transport(t)
 
     def __enter__(self):
-        print('Start sftp session to', self.server)
+        self.logger.debug('Start sftp session to %s', self.server)
         self.sftp = self.open_session()
         return self.sftp
 
     def __exit__(self, exc_type, exc_val, exc_tb): 
-        print('sftp session is disconnected from', self.server)
+        self.logger.debug('sftp session is disconnected from %s', self.server)
         self.sftp.close() 
 
 
@@ -41,34 +46,37 @@ class SSSHClient(object):
         self.username = username
         self.password =  password
         self.client = None
+        self.logger = get_logger('SSSHClient', level=logging.DEBUG)
 
     def __enter__(self):
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.client.AutoAddPolicy())
         self.client.connect(self.server, port=self.port, username=self.username,
                             password=self.password, timeout=5)
-        print('Connected to {}:{}'.format(self.server, self.port))
+        self.logger.debug('Connected to %s:%d', self.server, self.port)
         return self.client
 
     def __exit__(self, exc_type, exc_val, exc_tb): 
         if self.client:
             self.client.close()
-        print('Disconnected from {}:{}'.format(self.server, self.port))
+        self.logger.debug('Disconnected from %s:%s', self.server, self.port)
 
 
 class SSHClient(object):
     _MAX_MSG_SIZE_ = 2048
 
-    def __init__(self, server, port=17258, username='easytestagent', password='syncme'):
+    def __init__(self, server, port=17258, username='easytestagent',
+                 password='syncme'):
         self.server = server
         self.port = port 
         self.username = username
         self.password = password
         self.transport = None
         self.chan = None
+        self.logger = get_logger('SSHClient', level=logging.DEBUG)
 
     def connect(self):
-        print('Connect to {}:{}'.format(self.server, self.port))
+        self.logger.info('Connect to %s:%d', self.server, self.port)
         try:
             self.transport = paramiko.Transport((self.server, self.port))
             self.transport.connect(username=self.username,
@@ -76,13 +84,13 @@ class SSHClient(object):
             self.chan = self.transport.open_channel('session')
         except Exception as e:
             raise Exception('Failed to connect server:{}'.format(str(e)))
-        print('Server is connected')
+        self.logger.info('Server is connected')
 
 
     def close(self):
         if self.transport and self.ransport.is_active():
             self.transport.close()
-        print('Disconnected from {}:{}'.format(self.server, self.port))
+        self.logger.info('Disconnected from %s:%d', self.server, self.port)
 
     def send(self, msg):
         if self.chan and self.chan.send_ready():
@@ -110,6 +118,7 @@ class SSHServer(paramiko.server.ServerInterface):
         self.chans = {} 
         self.chan_lock = threading.Lock()
         self._exit = False
+        self.logger = get_logger('SSHServer', level=logging.DEBUG)
 
     def execute(self):
         self.sock_thread = threading.Thread(target=self.handle_connect_req)
@@ -120,9 +129,10 @@ class SSHServer(paramiko.server.ServerInterface):
         self.chan_thread.setDaemon(True)
         self.chan_thread.start()
 
-        print('Server is listening on *.*:{}'.format(self.port))
+        self.logger.info('Server is listening on *.*:{}'.format(self.port))
         self.sock_thread.join()
         self.chan_thread.join()
+        self.logger.info('Server is stopped'.format(self.port))
 
     def stop(self):
         self._exit = True

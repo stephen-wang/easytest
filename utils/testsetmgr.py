@@ -1,15 +1,18 @@
 #!/usr/bin/python3
 
 import glob
+import logging
 from os import path
 import re
 import sys
 
 from .exceptions import MalformedScriptError
+from .logger import get_logger
 
 
 TEST_GROUP_ENABLED = 'enabled' 
 TEST_GROUP_DISABLED = 'disabled' 
+logger = get_logger('TestsetMgr', level=logging.DEBUG)
 
 
 class Testcase:
@@ -44,6 +47,7 @@ class TestsetMgr(object):
         belonging to groups 'req_groups'
         """
 
+        logger.info('Collect test scripts to be run ...')
         tests = []
         if req_tests:
             # Get tests from script(s) explicitly specified by user
@@ -60,7 +64,7 @@ class TestsetMgr(object):
                 if set(testcase.groups) - set(req_groups):
                     tests.append(testcase)
 
-        print('Tests to be run: ', [test.script for test in tests])
+        logger.info('Found tests: %s', str([test.script for test in tests]))
         return tests
 
     @staticmethod
@@ -123,7 +127,7 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     testcase = TestsetMgr.get_testcase(TestsetMgr.get_test_fullpath(sys.argv[1]))
-    print('Test: ', testcase.script)
-    print('Parallel: ', testcase.parallel)
-    print('Groups: ', testcase.groups)
-    print('Result: ', testcase.result)
+    logger.info('Test: %s', testcase.script)
+    logger.info('Parallel: %s', testcase.parallel)
+    logger.info('Groups: %s', testcase.groups)
+    logger.info('Result: %s', testcase.result)

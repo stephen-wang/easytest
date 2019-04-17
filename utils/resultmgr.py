@@ -1,10 +1,15 @@
 #!/usr/bin/python3
 
 
+import logging
 from os import path
 
 from .exceptions import IllegalResultError
 from .message import SyncMsg, AckMsg
+from .logger import get_logger
+
+
+logger = get_logger('ResultMgr', level=logging.DEBUG)
 
 
 class TestResult:
@@ -28,6 +33,8 @@ class ResultMgr(object):
             self.results[script] = testcase.result
 
     def sync_result(self, server, chan, msg):
+        logger.debug('Receive sync update from %s: %s', chan.getpeername(),
+                     msg.decode())
         sync = SyncMsg.from_msg(msg)
         if not sync.final_msg:
             self.update(path.basename(sync.script), sync.status)

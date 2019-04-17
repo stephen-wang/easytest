@@ -7,26 +7,28 @@ test result.
 
 import argparse
 import glob
+import logging
 from os import path
-import random
 import subprocess
 import time
 
+from utils.logger import get_logger
 from utils.exceptions import SessionBrokenError
 from utils.ssh import SSHClient
 from utils.message import SyncMsg, AckMsg
 from utils.resultmgr import TestResult
 
 
+logger = get_logger('easytestagent', level=logging.DEBUG, is_agent=True)
+
+
 class EasytestAgent(object):
     def __init__(self, server):
         self.server = server
-        self.msg_id = 0
         self.client = None
 
     def connect(self):
-        random.seed(time.time())
-        self.msg_id = random.randint(5000, 50000)
+        logger.info('Connect to server %s', self.server)
         self.client = SSHClient(self.server)
         self.client.connect()
         return self
@@ -34,13 +36,16 @@ class EasytestAgent(object):
     def disconnect(self, exec_type, exec_val, exec_tb):
         if self.client:
             self.client.close()
+        logger.info('Disconnected from server %s', self.server)
 
-    def update_test_progress(self, tests, status):
+    def update_test_progress(self, testscript, status):
+        logger.info('Sync-up status to server: %s --- %s', testscript, status)
         msg = SyncMsg(testscript, status)
         resp = AckMsg(msg.msgid)
         self.notify(msg.val, resp.val)
 
-    def notify_test_done(self):
+    def notify_tests_done(self):
+        logger.info('Notify server all tests are finished')
         msg = SyncMsg('all', TestResult.FINISHED)
         resp = AckMsg(msg.msgid)
         self.notify(msg.val, resp.val)
@@ -52,6 +57,7 @@ class EasytestAgent(object):
         self.client.send(req)
         ack = self.client.recv()
         while retries < MAX_RETRIES and ack != expect_resp:
+            logger.debug('Sync-up [%s] failed, retry(%d)', req, retries)
             self.client.send(req)
             self.client.recv(ack)
             retries += 1
@@ -89,12 +95,14 @@ if __name__ == '__main__':
 
     search_path = path.join(args.testdir, '**/*.*')
     for testscript in glob.glob(search_path, recursive=True):
+        logger.info('Start to run %s', testscript)
         status = TestResult.RUNNING
         agent.update_test_progress(testscript, status)
         try:
             subprocess.check_output([testscript])
             status = TestResult.FINISHED
         except Exception as e:
+            logg.info('Test failed: %s', str(e))
             status = TestResult.FAILED
         if args.sync:
             agent.update_test_progress(testscript, status)
