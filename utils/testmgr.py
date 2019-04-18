@@ -76,6 +76,10 @@ class TestMgr(object):
         # Collect tests per uer input
         ProgressMgr.print_prompt('Collecting test scripts...')
         self.testcases = TestsetMgr.get_tests(self.tests, self.groups)
+        if not self.testcases:
+            ProgressMgr.print_prompt('No tests need to be run\n')
+            return
+
         ProgressMgr.print_prompt('Tests are running\n')
 
         relpaths = [c.relpath for c in self.testcases]
@@ -104,7 +108,7 @@ class TestMgr(object):
                     sshClient.exec_command('nohup {} &'.format(cmd))
 
             # Wait for all tests finish
-            while result_mgr.not_run() > 0 or result_mgr.running():
+            while not result_mgr.tests_done:
                 time.sleep(2)
 
             # Stop easytest daemon and exit

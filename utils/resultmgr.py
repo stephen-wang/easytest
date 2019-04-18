@@ -25,7 +25,9 @@ class TestResult(Enum):
 class ResultMgr(object):
 
     def __init__(self, testcases, progress_mgr):
+        self.tests_done = False
         self.progress_mgr = progress_mgr 
+
         self.results = {}
         for testcase in testcases:
             script = testcase.relpath
@@ -35,13 +37,16 @@ class ResultMgr(object):
         logger.debug('Receive sync update from %s: %s', chan.getpeername(),
                      msg.decode())
         sync = SyncMsg.from_msg(msg)
+        tests_done = False
         if sync.final_msg:
             self.progress_mgr.print_prompt('\n\t{}\n'.format(self.info()))
+            tests_done = True 
         else:
             self.update(sync.script, sync.status)
 
         ack = AckMsg(sync.msgid)
         server.response_msg(chan, ack.val)
+        self.tests_done = tests_done
 
     def update(self, script, status):
         if not isinstance(status,  TestResult):
@@ -80,7 +85,7 @@ class ResultMgr(object):
         return self.count(TestResult.SKIPPED)
 
     def info(self):
-        info_fmt = 'Total {}, skipped {}, passed {}, failed {}, aborted {}, '\
+        info_fmt = 'Total {}, passed {}, skipped {}, failed {}, aborted {}, '\
                    + 'not_run {}'
         return info_fmt.format(self.total(), self.passed(), self.skipped(),
                                self.failed(), self.aborted(), self.not_run())

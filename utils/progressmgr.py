@@ -2,7 +2,6 @@
 
 import logging
 import sys
-import time
 
 from .logger import get_logger
 from .resultmgr import TestResult
@@ -157,7 +156,6 @@ class ProgressMgr:
         msg = self.formatted_test_status_str(test, status)
         TermOps.print_at(x, y, msg)
         self.restore_cursor_pos()
-        time.sleep(1)
 
     def save_cursor_pos(self):
         self.cursor_pos = TermOps.get_cursor_pos()
