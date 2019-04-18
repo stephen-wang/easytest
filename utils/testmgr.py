@@ -10,6 +10,7 @@ from .envmgr import EnvMgr
 from .exceptions import InvalidArgumentError
 from .logger import get_logger
 from .message import SyncMsg
+from .progressmgr import ProgressMgr
 from .resultmgr import ResultMgr
 from .ssh import SSSHClient, SSHServer
 from .testsetmgr import TestsetMgr
@@ -30,6 +31,8 @@ class TestMgr(object):
 
         self.testcases = None
         self.daemon = None
+        self.daemon_ip = socket.gethostbyname(socket.gethostname())
+        self.progress_mgr = None
 
     def check_server_connectivity(self):
         """Check if requested server is reachable"""
@@ -71,36 +74,40 @@ class TestMgr(object):
         self.check_server_connectivity()
 
         # Collect tests per uer input
+        ProgressMgr.print_prompt('Collecting test scripts...')
         self.testcases = TestsetMgr.get_tests(self.tests, self.groups)
-        result_mgr = ResultMgr(self.testcases)
+        ProgressMgr.print_prompt('Tests are running\n')
 
-        # Deploy eastest agent scripts to test servers
-        self.remote_agent_dir = EnvMgr.deploy_agents(self.servers)
+        relpaths = [c.relpath for c in self.testcases]
+        with ProgressMgr(relpaths) as pm:
+            result_mgr = ResultMgr(self.testcases, pm)
 
-        # Deploy test scripts to test servers
-        testscripts = [testcase.script for testcase in self.testcases]
-        remote_test_dir = EnvMgr.deploy_tests(testscripts, self.servers)
+            # Deploy eastest agent scripts to test servers
+            self.remote_agent_dir = EnvMgr.deploy_agents(self.servers)
 
-        # Start daemon for syncing up status from test servers
-        daemon_thread = self.start_daemon(result_mgr.sync_result)
+            # Deploy test scripts to test servers
+            testscripts = [testcase.abspath for testcase in self.testcases]
+            remote_test_dir = EnvMgr.deploy_tests(testscripts, self.servers)
 
-        # Start to run tests on all test servers
-        logger.info('Begin to run tests ...')
-        for server in self.servers:
-            agent_script = path.join(self.remote_agent_dir, 'remoterun.py')
-            cmd = '{} --testdir {} --sync --server {}'.format(agent_script,
-                                                             remote_test_dir,
-                                                             socket.gethostname())
-            logger.debug('Start to run tests on {}, cmd:{}'.format(server, cmd))
-            with SSSHClient(server=server) as sshClient:
-                sshClient.exec_command('cd {}'.format(self.remote_agent_dir))
-                sshClient.exec_command('nohup {} &'.format(cmd))
+            # Start daemon for syncing up status from test servers
+            daemon_thread = self.start_daemon(result_mgr.sync_result)
 
-        # Wait for all tests finish
-        while result_mgr.not_run() > 0 or result_mgr.running():
-            time.sleep(2)
+            # Start to run tests on all test servers
+            logger.info('Begin to run tests ...')
+            for server in self.servers:
+                agent_script = path.join(self.remote_agent_dir, 'remoterun.py')
+                cmdFmt = '{} --testdir {} --sync --server {}'
+                cmd = cmdFmt.format(agent_script, remote_test_dir, self.daemon_ip)
+                logger.debug('Start to run tests on {}, cmd:{}'.format(server, cmd))
+                with SSSHClient(server=server) as sshClient:
+                    sshClient.exec_command('cd {}'.format(self.remote_agent_dir))
+                    sshClient.exec_command('nohup {} &'.format(cmd))
 
-        # Stop easytest daemon and exit
-        self.stop_daemon(daemon_thread)
+            # Wait for all tests finish
+            while result_mgr.not_run() > 0 or result_mgr.running():
+                time.sleep(2)
+
+            # Stop easytest daemon and exit
+            self.stop_daemon(daemon_thread)
 
         logger.info('All tests are finished: %s', result_mgr.info())

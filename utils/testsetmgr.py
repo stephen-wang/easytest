@@ -16,15 +16,15 @@ TEST_GROUP_DISABLED = 'disabled'
 logger = get_logger('TestsetMgr', level=logging.DEBUG)
 
 
-class Testcase:
+class TestCase:
     """ Util class for storing charateristics of each test script. """
 
-    def __init__(self, filepath, groups=[], parallel=False,
-                 result=TestResult.NOTRUN):
-        self.script = filepath 
-        self.groups = groups
-        self.parallel = parallel 
-        self.result = result 
+    def __init__(self, abspath, relpath):
+        self.abspath = abspath
+        self.relpath = relpath
+        self.groups = [] 
+        self.parallel = False 
+        self.result = TestResult.NOTRUN 
 
     def addGroup(self, group):
         self.groups.append(group)
@@ -32,15 +32,21 @@ class Testcase:
     def setParallel(self, parallel):
         self.parallel = parallel
 
+    def __str__(self):
+        fmt = ('Testcase:\n\tabspath {}\n\trelpath {}\n\tgroups {}\n\t'
+               'paralle {}\n\tresult {}')
+        return fmt.format(self.abspath, self.relpath, self.groups,
+                          self.parallel, self.result)
+
 
 class TestsetMgr(object):
     """The util class for collecting tests to be run per user input"""
 
-    __TEST_ROOT__ = path.join(path.abspath(path.dirname(__file__)), '../tests')
+    _TEST_ROOT_ = path.join(path.abspath(path.dirname(__file__)), '../tests')
 
     @staticmethod
     def get_test_fullpath(relpath):
-        return path.normpath(path.join(TestsetMgr.__TEST_ROOT__, relpath))
+        return path.normpath(path.join(TestsetMgr._TEST_ROOT_, relpath))
 
 
     @staticmethod
@@ -56,17 +62,17 @@ class TestsetMgr(object):
             for test in req_tests:
                  test_script = TestsetMgr.get_test_fullpath(test)
                  testcase = TestsetMgr.get_testcase(test_script)
-                 if set(testcase.groups) - set(req_groups):
+                 if set(req_groups).issubset(set(testcase.groups)):
                      tests.append(testcase)
         else:
             # Get tests from group(s) explicitly specified by user
-            test_path_wildcard = path.join(TestsetMgr.__TEST_ROOT__, '**/*.*')
+            test_path_wildcard = path.join(TestsetMgr._TEST_ROOT_, '**/*.*')
             for test_script in glob.glob(test_path_wildcard, recursive=True):
                 testcase = TestsetMgr.get_testcase(path.normpath(test_script))
-                if set(testcase.groups) - set(req_groups):
+                if set(req_groups).issubset(set(testcase.groups)):
                     tests.append(testcase)
 
-        logger.info('Found tests: %s', str([test.script for test in tests]))
+        logger.info('Found tests: %s', str([test.relpath for test in tests]))
         return tests
 
     @staticmethod
@@ -80,19 +86,22 @@ class TestsetMgr(object):
                         #group-B : enabled
                         #group-C : disabled
                 
-                 Above statments make the test belong to group 'A', 'B', 'C'at
+                 Above statments make the test belong to group 'A', 'B', 'C' at
                  same time, but the test is disabled in group 'C'.
 
               2) A test can declare to be parallel or not by below statement:
                        #parallel : true  #or false
         """
 
+        logger.debug('Check script %s', test_script)
+
         # Set patterns for parsing group and parallel properties
         regex_group = re.compile('#group-(.*)(\s*):(\s*)(.+)')
         regex_parallel = re.compile('#parallel(\s*):(\s*)(.+)')
 
         # Check test script line by line
-        testcase= Testcase(test_script)
+        relpath = path.relpath(test_script, TestsetMgr._TEST_ROOT_)
+        testcase= TestCase(test_script, relpath)
         with open(test_script) as f:
             set_parallel = False
             for line in f:
@@ -119,7 +128,7 @@ class TestsetMgr(object):
                     if m:
                         parallel_run = (m.group(3).strip().tolower() == 'true')
                         testcase.set_parallel(parallel_run)
-
+        logger.debug(str(testcase))
         return testcase
 
 
@@ -129,7 +138,8 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     testcase = TestsetMgr.get_testcase(TestsetMgr.get_test_fullpath(sys.argv[1]))
-    logger.info('Test: %s', testcase.script)
+    logger.info('Test: %s', testcase.abspath)
+    logger.info('relpath: %s', testcase.relpath)
     logger.info('Parallel: %s', testcase.parallel)
     logger.info('Groups: %s', testcase.groups)
     logger.info('Result: %s', testcase.result)

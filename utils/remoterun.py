@@ -97,7 +97,8 @@ if __name__ == '__main__':
     for testscript in glob.glob(search_path, recursive=True):
         logger.info('Start to run %s', testscript)
         status = TestResult.RUNNING
-        agent.update_test_progress(testscript, status)
+        test_rel_path = path.relpath(testscript, args.testdir)
+        agent.update_test_progress(test_rel_path, status)
         try:
             subprocess.check_output([testscript])
             status = TestResult.FINISHED
@@ -105,5 +106,5 @@ if __name__ == '__main__':
             logg.info('Test failed: %s', str(e))
             status = TestResult.FAILED
         if args.sync:
-            agent.update_test_progress(testscript, status)
+            agent.update_test_progress(test_rel_path, status)
     agent.notify_tests_done()

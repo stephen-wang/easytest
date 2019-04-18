@@ -19,22 +19,26 @@ class TestResult(Enum):
     FINISHED = 'Finished'
     NOTRUN = 'NotRun'
     RUNNING = 'Running'
+    SKIPPED = 'Skipped'
 
 
 class ResultMgr(object):
 
-    def __init__(self, testcases):
+    def __init__(self, testcases, progress_mgr):
+        self.progress_mgr = progress_mgr 
         self.results = {}
         for testcase in testcases:
-            script = path.basename(testcase.script)
+            script = testcase.relpath
             self.results[script] = testcase.result
 
     def sync_result(self, server, chan, msg):
         logger.debug('Receive sync update from %s: %s', chan.getpeername(),
                      msg.decode())
         sync = SyncMsg.from_msg(msg)
-        if not sync.final_msg:
-            self.update(path.basename(sync.script), sync.status)
+        if sync.final_msg:
+            self.progress_mgr.print_prompt('\n\t{}\n'.format(self.info()))
+        else:
+            self.update(sync.script, sync.status)
 
         ack = AckMsg(sync.msgid)
         server.response_msg(chan, ack.val)
@@ -49,6 +53,7 @@ class ResultMgr(object):
         
         if script in self.results:
             self.results[script] = status
+            self.progress_mgr.update_test_status(script, status)
 
     def count(self, status):
         return sum([1 for v in self.results.values() if v == status])
@@ -65,13 +70,17 @@ class ResultMgr(object):
     def not_run(self):
         return self.count(TestResult.NOTRUN)
 
-    def running(self):
-        return self.count(TestResult.RUNNING)
-
     def passed(self):
         return self.count(TestResult.FINISHED)
 
+    def running(self):
+        return self.count(TestResult.RUNNING)
+
+    def skipped(self):
+        return self.count(TestResult.SKIPPED)
+
     def info(self):
-        info_fmt = 'total {}, passed {}, failed {}, aborted {}'
-        return info_fmt.format(self.total(), self.passed(),
-                               self.failed(), self.aborted())
+        info_fmt = 'Total {}, skipped {}, passed {}, failed {}, aborted {}, '\
+                   + 'not_run {}'
+        return info_fmt.format(self.total(), self.passed(), self.skipped(),
+                               self.failed(), self.aborted(), self.not_run())
