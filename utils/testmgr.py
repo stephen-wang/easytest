@@ -2,6 +2,7 @@
 
 import logging
 from os import path
+import socket
 import threading
 import time
 
@@ -63,9 +64,9 @@ class TestMgr(object):
 
     def run(self):
         """ Start to run tests. """
-        
-        import socket
 
+        logger.info('Start to run tests') 
+        
         # Make sure all requested server are accessible
         self.check_server_connectivity()
 
@@ -81,7 +82,6 @@ class TestMgr(object):
         remote_test_dir = EnvMgr.deploy_tests(testscripts, self.servers)
 
         # Start daemon for syncing up status from test servers
-        self.daemon = SSHServer(msg_handler=result_mgr.sync_result)
         daemon_thread = self.start_daemon(result_mgr.sync_result)
 
         # Start to run tests on all test servers
@@ -97,10 +97,10 @@ class TestMgr(object):
                 sshClient.exec_command('nohup {} &'.format(cmd))
 
         # Wait for all tests finish
-        while result_mgr.not_run() > 0:
+        while result_mgr.not_run() > 0 or result_mgr.running():
             time.sleep(2)
-
-        logger.info('All tests are finished: %s', result_mgr.info())
 
         # Stop easytest daemon and exit
         self.stop_daemon(daemon_thread)
+
+        logger.info('All tests are finished: %s', result_mgr.info())

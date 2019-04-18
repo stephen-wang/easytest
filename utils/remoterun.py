@@ -39,14 +39,14 @@ class EasytestAgent(object):
         logger.info('Disconnected from server %s', self.server)
 
     def update_test_progress(self, testscript, status):
-        logger.info('Sync-up status to server: %s --- %s', testscript, status)
-        msg = SyncMsg(testscript, status)
+        logger.info('Sync-up status to server: %s --- %s', testscript, status.value)
+        msg = SyncMsg(testscript, status.value)
         resp = AckMsg(msg.msgid)
         self.notify(msg.val, resp.val)
 
     def notify_tests_done(self):
         logger.info('Notify server all tests are finished')
-        msg = SyncMsg('all', TestResult.FINISHED)
+        msg = SyncMsg('all', TestResult.FINISHED.value)
         resp = AckMsg(msg.msgid)
         self.notify(msg.val, resp.val)
 

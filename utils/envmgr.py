@@ -27,7 +27,7 @@ class EnvMgr(object):
         return ''.join([prefix, chars, nums])
 
     @staticmethod
-    def deploy_agents(servers, username='stephenw', password='ca$hc0w'):
+    def deploy_agents(servers, username='stephenw', password='l0ve2o19'):
         """Copy easytest agent scripts to newly created directory on target servers """
 
         logger.info('Start to deploy agent scripts')
@@ -64,7 +64,7 @@ class EnvMgr(object):
 
     @staticmethod
     def deploy_tests(test_files, servers, username='stephenw',
-                     password='ca$hc0w'):
+                     password='l0ve2o19'):
         """Copy test scripts to newly created directory on target servers """
 
         logger.info('Start to deploy test scripts')

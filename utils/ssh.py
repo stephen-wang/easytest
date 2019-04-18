@@ -40,7 +40,7 @@ class SftpClient(object):
 
 class SSSHClient(object):
     def __init__(self, server='127.0.0.1', port=22, username='stephenw',
-                 password='ca$hc0w'):
+                 password='l0ve2o19'):
         self.server = server
         self.port = port
         self.username = username
@@ -230,10 +230,10 @@ class SSHServer(paramiko.server.ServerInterface):
 if __name__ == '__main__':
     print('Test SftpClient')
     from os import path
-    with SftpClient(server='127.0.0.1', username='stephenw', password='ca$hc0w') as sftpClient:
+    with SftpClient(server='127.0.0.1', username='stephenw', password='l0ve2o19') as sftpClient:
         print(sftpClient.listdir(path.dirname(path.abspath(__file__))))
 
 
     print('\nTest SSHClient')
-    with SSSHClient(server='127.0.0.1', port=22, username='stephenw', password='ca$hc0w') as sshClient:
+    with SSSHClient(server='127.0.0.1', port=22, username='stephenw', password='l0ve2o19') as sshClient:
         pass

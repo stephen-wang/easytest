@@ -6,6 +6,7 @@ from os import path
 import re
 import sys
 
+from .resultmgr import TestResult
 from .exceptions import MalformedScriptError
 from .logger import get_logger
 
@@ -18,7 +19,8 @@ logger = get_logger('TestsetMgr', level=logging.DEBUG)
 class Testcase:
     """ Util class for storing charateristics of each test script. """
 
-    def __init__(self, filepath, groups=[], parallel=False, result='NotRun'):
+    def __init__(self, filepath, groups=[], parallel=False,
+                 result=TestResult.NOTRUN):
         self.script = filepath 
         self.groups = groups
         self.parallel = parallel 

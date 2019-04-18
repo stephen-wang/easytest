@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 
+from enum import Enum
 import logging
 from os import path
 
@@ -12,7 +13,7 @@ from .logger import get_logger
 logger = get_logger('ResultMgr', level=logging.DEBUG)
 
 
-class TestResult:
+class TestResult(Enum):
     ABORTED = 'Aborted'
     FAILED = 'Failed'
     FINISHED = 'Finished'
@@ -21,10 +22,6 @@ class TestResult:
 
 
 class ResultMgr(object):
-
-    _ALLOWED_RESULTS_ = [TestResult.ABORTED, TestResult.FAILED,
-                         TestResult.FINISHED, TestResult.NOTRUN,
-                         TestResult.RUNNING]
 
     def __init__(self, testcases):
         self.results = {}
@@ -43,9 +40,12 @@ class ResultMgr(object):
         server.response_msg(chan, ack.val)
 
     def update(self, script, status):
-        if status not in ResultMgr._ALLOWED_RESULTS_:
-            error = 'Set result of {} to {}'.format(script, status)
-            raise IllegalResultError(error)
+        if not isinstance(status,  TestResult):
+            try:
+                status = TestResult(status)
+            except Exception:
+                error = 'Set result of {} to {}'.format(script, status)
+                raise IllegalResultError(error)
         
         if script in self.results:
             self.results[script] = status
@@ -64,6 +64,9 @@ class ResultMgr(object):
 
     def not_run(self):
         return self.count(TestResult.NOTRUN)
+
+    def running(self):
+        return self.count(TestResult.RUNNING)
 
     def passed(self):
         return self.count(TestResult.FINISHED)
