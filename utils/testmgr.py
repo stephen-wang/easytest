@@ -77,7 +77,7 @@ class TestMgr(object):
         ProgressMgr.print_prompt('Collecting test scripts...')
         self.testcases = TestsetMgr.get_tests(self.tests, self.groups)
         if not self.testcases:
-            ProgressMgr.print_prompt('No tests need to be run\n')
+            ProgressMgr.print_prompt('No tests need to be run')
             return
 
         ProgressMgr.print_prompt('Tests are running\n')

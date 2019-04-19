@@ -23,6 +23,7 @@ class ProgressMgr:
         TestResult.RUNNING: TextColor.WHITE, 
         TestResult.NOTRUN: TextColor.LIGHT_GRAY, 
     }
+    cursor_pos = None
 
     def __init__(self, rel_test_paths):
         """Initialze class members """
@@ -34,15 +35,16 @@ class ProgressMgr:
         # because it's different between local and test machines
         self.rel_test_paths = rel_test_paths
 
-        self.max_path_len = max([len(test_path) for test_path in self.rel_test_paths])
+        self.max_path_len = max([len(p) for p in self.rel_test_paths])
         self.term_attr = None
-        self.cursor_pos = None
 
-    @staticmethod
-    def print_prompt(msg):
+    @classmethod
+    def print_prompt(cls, msg):
         """Print out some prompt message"""
 
-        print(' '*120+'\r'+msg+'\r', end='')
+        if cls.cursor_pos is None:
+            cls.save_cursor_pos()
+        TermOps.print_at(cls.cursor_pos[0], cls.cursor_pos[1], msg)
 
     def set_term(self):
         """Prepare for terminal operations"""
@@ -157,11 +159,10 @@ class ProgressMgr:
         TermOps.print_at(x, y, msg)
         self.restore_cursor_pos()
 
-    def save_cursor_pos(self):
-        self.cursor_pos = TermOps.get_cursor_pos()
+    @classmethod
+    def save_cursor_pos(cls):
+        cls.cursor_pos = TermOps.get_cursor_pos()
 
-    def restore_cursor_pos(self):
-        TermOps.print_at(self.cursor_pos[0], self.cursor_pos[1], '\r')
-
-    def finalize_test_positions(self):
-        self.mvoe_up_position()
+    @classmethod
+    def restore_cursor_pos(cls):
+        TermOps.print_at(cls.cursor_pos[0], cls.cursor_pos[1], '\r')

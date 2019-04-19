@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 
 
 from enum import Enum
 import os
@@ -29,6 +29,10 @@ class TextColor(Enum):
 
 
 class TermOps:
+    """Util class for terminal operations.
+    """
+
+
     @staticmethod 
     def colored_text(color, text):
         """Enclose text the escaped characters so that text can be printed with
@@ -118,5 +122,9 @@ class TermOps:
     @staticmethod
     def print_at(x, y, msg, end=''):
         position = '\033[{};{}f'.format(x, y)
-        override_chars = ' '*20+'\r'
+        override_chars = ' '*_MAX_COLS_ + '\r'
         print(position+override_chars+msg, end=end)
+
+
+_MAX_ROWS_, _MAX_COLS_ = TermOps.get_term_size()
+
