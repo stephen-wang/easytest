@@ -122,9 +122,9 @@ class TermOps:
     @staticmethod
     def print_at(x, y, msg, end=''):
         position = '\033[{};{}f'.format(x, y)
-        override_chars = ' '*_MAX_COLS_ + '\r'
-        print(position+override_chars+msg, end=end)
+        space_chars = ' ' * (MAX_COLS-1) + '\r'
+        print(position+space_chars+msg, end=end, flush=True)
 
 
-_MAX_ROWS_, _MAX_COLS_ = TermOps.get_term_size()
+MAX_ROWS, MAX_COLS = TermOps.get_term_size()
 

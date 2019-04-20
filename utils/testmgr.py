@@ -10,8 +10,8 @@ from .envmgr import EnvMgr
 from .exceptions import InvalidArgumentError
 from .logger import get_logger
 from .message import SyncMsg
-from .progressmgr import ProgressMgr
-from .resultmgr import ResultMgr
+from .termmgr import TermMgr
+from .resultmgr import ResultMgr, TestResult
 from .ssh import SSSHClient, SSHServer
 from .testsetmgr import TestsetMgr
 
@@ -74,24 +74,27 @@ class TestMgr(object):
         self.check_server_connectivity()
 
         # Collect tests per uer input
-        ProgressMgr.print_prompt('Collecting test scripts...')
+        TermMgr.print_prompt('Collecting test scripts...')
         self.testcases = TestsetMgr.get_tests(self.tests, self.groups)
         if not self.testcases:
-            ProgressMgr.print_prompt('No tests need to be run')
+            TermMgr.print_prompt('No tests need to be run')
             return
 
-        ProgressMgr.print_prompt('Tests are running\n')
-
+        TermMgr.print_prompt('Tests are running...')
         relpaths = [c.relpath for c in self.testcases]
-        with ProgressMgr(relpaths) as pm:
-            result_mgr = ResultMgr(self.testcases, pm)
+        with TermMgr(relpaths) as tm:
+            result_mgr = ResultMgr(self.testcases, tm)
+
+            # Show skipped tests on terminal 
+            result_mgr.sync_skipped_tests()
 
             # Deploy eastest agent scripts to test servers
             self.remote_agent_dir = EnvMgr.deploy_agents(self.servers)
 
             # Deploy test scripts to test servers
-            testscripts = [testcase.abspath for testcase in self.testcases]
-            remote_test_dir = EnvMgr.deploy_tests(testscripts, self.servers)
+            tests = [t.abspath for t in self.testcases if \
+                                     t.result == TestResult.NOTRUN]
+            remote_test_dir = EnvMgr.deploy_tests(tests, self.servers)
 
             # Start daemon for syncing up status from test servers
             daemon_thread = self.start_daemon(result_mgr.sync_result)
@@ -114,4 +117,5 @@ class TestMgr(object):
             # Stop easytest daemon and exit
             self.stop_daemon(daemon_thread)
 
+            tm.summarize(result_mgr.info())
         logger.info('All tests are finished: %s', result_mgr.info())

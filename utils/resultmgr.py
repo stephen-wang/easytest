@@ -24,22 +24,33 @@ class TestResult(Enum):
 
 class ResultMgr(object):
 
-    def __init__(self, testcases, progress_mgr):
+    def __init__(self, testcases, term_mgr):
         self.tests_done = False
-        self.progress_mgr = progress_mgr 
+        self.term_mgr = term_mgr 
 
         self.results = {}
         for testcase in testcases:
-            script = testcase.relpath
-            self.results[script] = testcase.result
+            self.results[testcase.relpath] = testcase.result
 
+    def sync_skipped_tests(self):
+        """Some tests belong to requested group but are marked as 'disabled',
+        this function is to mark and show the results of those tests as
+        'SKIPPED'.
+        """
+
+        logger.debug('Sync-up skipped tests')
+        for test_rel_path, status in self.results.items():
+            if status == TestResult.SKIPPED:
+                self.update(test_rel_path, status)
+        
     def sync_result(self, server, chan, msg):
+        """Response to test progress sync-up requests from easytest agent."""
+
         logger.debug('Receive sync update from %s: %s', chan.getpeername(),
                      msg.decode())
         sync = SyncMsg.from_msg(msg)
         tests_done = False
         if sync.final_msg:
-            self.progress_mgr.print_prompt('\n\t{}\n'.format(self.info()))
             tests_done = True 
         else:
             self.update(sync.script, sync.status)
@@ -49,6 +60,8 @@ class ResultMgr(object):
         self.tests_done = tests_done
 
     def update(self, script, status):
+        """Update test result to terminal"""
+        
         if not isinstance(status,  TestResult):
             try:
                 status = TestResult(status)
@@ -58,7 +71,7 @@ class ResultMgr(object):
         
         if script in self.results:
             self.results[script] = status
-            self.progress_mgr.update_test_status(script, status)
+            self.term_mgr.update_test_status(script, status)
 
     def count(self, status):
         return sum([1 for v in self.results.values() if v == status])
@@ -85,6 +98,8 @@ class ResultMgr(object):
         return self.count(TestResult.SKIPPED)
 
     def info(self):
+        """Make statistics info of test result printable"""
+
         info_fmt = 'Total {}, passed {}, skipped {}, failed {}, aborted {}, '\
                    + 'not_run {}'
         return info_fmt.format(self.total(), self.passed(), self.skipped(),

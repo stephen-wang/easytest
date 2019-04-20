@@ -48,7 +48,7 @@ class EnvMgr(object):
                     sftp.mkdir(agent_dir)
                     sftp.mkdir(agent_utils_dir)
 
-                regex = path.join(path.dirname(__name__), '**/*.*')
+                regex = path.join(path.dirname(__name__), 'utils', '**/*.*')
                 for localf in glob.glob(regex, recursive=True):
                     if '__pycache__' not in localf:
                         remotef = path.join(agent_utils_dir,

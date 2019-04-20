@@ -23,20 +23,27 @@ class TestCase:
         self.abspath = abspath
         self.relpath = relpath
         self.groups = [] 
+        self.disabled_groups = []
         self.parallel = False 
         self.result = TestResult.NOTRUN 
 
-    def addGroup(self, group):
+    def add_group(self, group):
         self.groups.append(group)
 
-    def setParallel(self, parallel):
+    def add_disabled_group(self, group):
+        self.disabled_groups.append(group)
+
+    def set_parallel(self, parallel):
         self.parallel = parallel
+
+    def set_result(self, result):
+        self.result = result
 
     def __str__(self):
         fmt = ('Testcase:\n\tabspath {}\n\trelpath {}\n\tgroups {}\n\t'
-               'paralle {}\n\tresult {}')
+               'disabled groups {}\n\tparalle {}\n\tresult {}')
         return fmt.format(self.abspath, self.relpath, self.groups,
-                          self.parallel, self.result)
+                          self.disabled_groups, self.parallel, self.result)
 
 
 class TestsetMgr(object):
@@ -55,7 +62,7 @@ class TestsetMgr(object):
         belonging to groups 'req_groups'
         """
 
-        logger.info('Collect test scripts to be run ...')
+        logger.info('Collect test scripts...')
         tests = []
         if req_tests:
             # Get tests from script(s) explicitly specified by user
@@ -69,8 +76,17 @@ class TestsetMgr(object):
             test_path_wildcard = path.join(TestsetMgr._TEST_ROOT_, '**/*.*')
             for test_script in glob.glob(test_path_wildcard, recursive=True):
                 testcase = TestsetMgr.get_testcase(path.normpath(test_script))
-                if set(req_groups).issubset(set(testcase.groups)):
-                    tests.append(testcase)
+                for group in set(req_groups):
+                    if group in testcase.groups:
+                        tests.append(testcase)
+                        break
+
+                if testcase not in tests:
+                    for group in set(req_groups):
+                        if group in testcase.disabled_groups:
+                            testcase.set_result(TestResult.SKIPPED)
+                            tests.append(testcase)
+                            break
 
         logger.info('Found tests: %s', str([test.relpath for test in tests]))
         return tests
@@ -112,7 +128,9 @@ class TestsetMgr(object):
                         group = m.group(1).strip()
                         state = m.group(4).strip()
                         if state == TEST_GROUP_ENABLED:
-                            testcase.addGroup(group)
+                            testcase.add_group(group)
+                        elif state == TEST_GROUP_DISABLED:
+                            testcase.add_disabled_group(group)
                     else:
                         msg = 'Error: "{}" in {}'.format(line, test_script)
                         raise MalformedScriptError(msg)
