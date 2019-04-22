@@ -27,7 +27,7 @@ class EnvMgr(object):
         return ''.join([prefix, chars, nums])
 
     @staticmethod
-    def deploy_agents(servers, username='stephenw', password='l0ve2o19'):
+    def deploy_agents(servers, username, password):
         """Copy easytest agent scripts to newly created directory on target servers """
 
         logger.info('Start to deploy agent scripts')
@@ -60,11 +60,17 @@ class EnvMgr(object):
                 sftp.rename(path.join(agent_utils_dir, 'remoterun.py'),
                             path.join(agent_dir, 'remoterun.py'))
 
+                # deploy config file
+                local_conf = path.join(path.dirname(path.abspath(__name__)), 'config.ini')
+                remote_conf = path.join(agent_dir, 'config.ini')
+                logger.info('Copy %s to %s:%s', local_conf, server, remote_conf)
+                sftp.put(local_conf, remote_conf)
+                sftp.chmod(remote_conf, mode)
+
         return agent_dir
 
     @staticmethod
-    def deploy_tests(test_files, servers, username='stephenw',
-                     password='l0ve2o19'):
+    def deploy_tests(test_files, servers, username, password):
         """Copy test scripts to newly created directory on target servers """
 
         logger.info('Start to deploy test scripts')

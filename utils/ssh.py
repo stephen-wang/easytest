@@ -11,11 +11,8 @@ from .message import AckMsg
 from .logger import get_logger
 
 
-
-
 class SftpClient(object):
-    def __init__(self, server='127.0.0.1', port=22, username='root',
-                 password='123456'):
+    def __init__(self, server, username, password, port=22):
         self.server= server
         self.port = port
         self.username = username
@@ -38,15 +35,14 @@ class SftpClient(object):
         self.sftp.close() 
 
 
-class SSSHClient(object):
-    def __init__(self, server='127.0.0.1', port=22, username='stephenw',
-                 password='l0ve2o19'):
+class SSHClient:
+    def __init__(self, server, username, password, port=22):
         self.server = server
         self.port = port
         self.username = username
         self.password =  password
         self.client = None
-        self.logger = get_logger('SSSHClient', level=logging.DEBUG)
+        self.logger = get_logger('SSHClient', level=logging.DEBUG)
 
     def __enter__(self):
         self.client = paramiko.SSHClient()
@@ -56,27 +52,26 @@ class SSSHClient(object):
         self.logger.debug('Connected to %s:%d', self.server, self.port)
         return self.client
 
-    def __exit__(self, exc_type, exc_val, exc_tb): 
+    def __exit__(self, exc_type, exc_val, exc_tb):
         if self.client:
             self.client.close()
         self.logger.debug('Disconnected from %s:%s', self.server, self.port)
 
 
-class SSHClient(object):
+class SSHConnector(object):
     _MAX_MSG_SIZE_ = 2048
 
-    def __init__(self, server, port=17258, username='easytestagent',
-                 password='syncme'):
+    def __init__(self, server, username, password, port=22):
         self.server = server
         self.port = port 
         self.username = username
         self.password = password
         self.transport = None
         self.chan = None
-        self.logger = get_logger('SSHClient', level=logging.DEBUG)
+        self.logger = get_logger('SSHConnector', level=logging.DEBUG)
 
     def connect(self):
-        self.logger.info('Connect to %s:%d', self.server, self.port)
+        self.logger.debug('Connect to %s:%d', self.server, self.port)
         try:
             self.transport = paramiko.Transport((self.server, self.port))
             self.transport.connect(username=self.username,
@@ -84,7 +79,7 @@ class SSHClient(object):
             self.chan = self.transport.open_channel('session')
         except Exception as e:
             raise Exception('Failed to connect server:{}'.format(str(e)))
-        self.logger.info('Server is connected')
+        self.logger.debug('Server is connected')
 
 
     def close(self):
@@ -98,19 +93,27 @@ class SSHClient(object):
 
     def recv(self):
         if self.chan:
-            msg = self.chan.recv(SSHClient._MAX_MSG_SIZE_)
+            msg = self.chan.recv(SSHConnector._MAX_MSG_SIZE_)
             return msg
         return None
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb): 
+        self.close()
+        self.logger.debug('Disconnected from %s:%s', self.server, self.port)
 
 
 class SSHServer(paramiko.server.ServerInterface):
 
     _MAX_MSG_SIZE_ = 2048 
-    _DEFAULT_USERNAME_ = 'easytestagent'
-    _DEFAULT_PASSWORD_ = 'syncme'
 
-    def __init__(self, msg_handler, port=17258):
+    def __init__(self, msg_handler, username, password, port=17258):
         self.msg_handler = msg_handler
+        self.username = username
+        self.password = password
         self.port = port 
         self.server_key = paramiko.RSAKey.generate(self._MAX_MSG_SIZE_)
         self.sock_thread = None
@@ -208,7 +211,7 @@ class SSHServer(paramiko.server.ServerInterface):
         return 'none'
 
     def check_auth_password(self, username, password):
-        if username == self._DEFAULT_USERNAME_ and password == self._DEFAULT_PASSWORD_:
+        if username == self.username and password == self.password:
             return paramiko.AUTH_SUCCESSFUL
         else:
             return paramiko.AUTH_FAILED
@@ -224,16 +227,3 @@ class SSHServer(paramiko.server.ServerInterface):
 
     def get_banner(self):
         return 'easytest daemon', 'en' 
-
-
-
-if __name__ == '__main__':
-    print('Test SftpClient')
-    from os import path
-    with SftpClient(server='127.0.0.1', username='stephenw', password='l0ve2o19') as sftpClient:
-        print(sftpClient.listdir(path.dirname(path.abspath(__file__))))
-
-
-    print('\nTest SSHClient')
-    with SSSHClient(server='127.0.0.1', port=22, username='stephenw', password='l0ve2o19') as sshClient:
-        pass

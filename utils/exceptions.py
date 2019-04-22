@@ -15,3 +15,6 @@ class SessionBrokenError(Exception):
 
 class IllegalResultError(Exception):
     pass
+
+class InvalidConfigError(Exception):
+    pass

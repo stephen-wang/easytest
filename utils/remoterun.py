@@ -12,9 +12,10 @@ from os import path
 import subprocess
 import time
 
+from utils.authmgr import AuthMgr
 from utils.logger import get_logger
 from utils.exceptions import SessionBrokenError
-from utils.ssh import SSHClient
+from utils.ssh import SSHConnector
 from utils.message import SyncMsg, AckMsg
 from utils.resultmgr import TestResult
 
@@ -23,19 +24,23 @@ logger = get_logger('easytestagent', level=logging.DEBUG, is_agent=True)
 
 
 class EasytestAgent(object):
+    _CONFIG_FILE = path.join(path.dirname(path.abspath(__file__)), 'config.ini')
     def __init__(self, server):
         self.server = server
-        self.client = None
+        self.connector= None
 
     def connect(self):
         logger.info('Connect to server %s', self.server)
-        self.client = SSHClient(self.server)
-        self.client.connect()
+        auth_mgr = AuthMgr(config_file=EasytestAgent._CONFIG_FILE)
+        self.connector= SSHConnector(self.server, port=auth_mgr.daemon_port,
+                                     username=auth_mgr.daemon_username,
+                                     password=auth_mgr.daemon_password)
+        self.connector.connect()
         return self
 
     def disconnect(self, exec_type, exec_val, exec_tb):
-        if self.client:
-            self.client.close()
+        if self.connector:
+            self.connecctor.close()
         logger.info('Disconnected from server %s', self.server)
 
     def update_test_progress(self, testscript, status):
@@ -54,12 +59,12 @@ class EasytestAgent(object):
         retries = 0
         MAX_RETRIES = 3
 
-        self.client.send(req)
-        ack = self.client.recv()
+        self.connector.send(req)
+        ack = self.connector.recv()
         while retries < MAX_RETRIES and ack != expect_resp:
             logger.debug('Sync-up [%s] failed, retry(%d)', req, retries)
-            self.client.send(req)
-            self.client.recv(ack)
+            self.connector.send(req)
+            self.connector.recv(ack)
             retries += 1
 
         if retries == MAX_RETRIES:
