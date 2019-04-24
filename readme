@@ -1,1 +1,69 @@
-easytest
+Purpose
+
+easytest is a lightweight test framework, which can distribute test scripts to
+multiple linux servers and run them in parallel. Currently, below features are
+supported:
+
+1) multiple-language 
+   Test scripts can be written in vary of languages (shell, python, perl, ...)
+   only if relevant run-time/interpreter is available on target machine;
+   
+2) test group
+   Tests can be grouped together and run intentionally, e.g. all data
+   compression realted tests are put into group-compressin, all network related
+   tests are put into group-network, etc. 
+
+3) statistic
+   When tests are finished, the information about how many tests are
+   passed/failed/skipped is collected. 
+
+
+Design
+
+1) testMgr
+The wrapper and single entry point of easytest framework, which will start and
+serialize the whole test procedure
+
+2) testsetMgr 
+The util class for collecting tests to be run per user input.
+
+3) authMgr
+Read authenticat info of both test server and easytest daemon from config file.
+
+4) envMgr
+The util class for env setup, which copies easytest agent and test scripts to
+test machine(s).
+
+5) resultMgr
+The util classes for updating test results timely per notice from easytest
+agents, and notify termMgr to update terminal output
+
+6) termMgr
+The util class for managing and updating ternial output timely.
+
+7) logger
+the utill module to provide logging interface for each module.
+
+For more details, check UML diagrams under doc/ folder or just read code.
+
+
+Configuration & Usage:
+
+1) Python3 & python paramiko & openssh should be installed to run easytest
+2) Download easytest code to your linux 
+3) Go to easytest directory, modify config.ini per your actual env
+
+   $ cd easytest
+   $ cat config.ini
+   [server]
+   username=stephenw         # account of test server
+   password=l0ve2o19         # password of test server
+
+   [daemon]
+   port=17258                # port of easytest daemon 
+   username=easytestagent    # account of easytest daemon 
+   password=syncme           # password of easytest daemon
+
+4) Run tests with easytest
+   under easy test 
+   $./run.py --group C13 --server 127.0.0.1
