@@ -12,7 +12,7 @@ from os import path
 import subprocess
 import time
 
-from utils.authmgr import AuthMgr
+from utils.configmgr import ConfigMgr
 from utils.logger import get_logger
 from utils.exceptions import SessionBrokenError
 from utils.ssh import SSHConnector
@@ -31,10 +31,10 @@ class EasytestAgent(object):
 
     def connect(self):
         logger.info('Connect to server %s', self.server)
-        auth_mgr = AuthMgr(config_file=EasytestAgent._CONFIG_FILE)
-        self.connector= SSHConnector(self.server, port=auth_mgr.daemon_port,
-                                     username=auth_mgr.daemon_username,
-                                     password=auth_mgr.daemon_password)
+        config_mgr = ConfigMgr(config_file=EasytestAgent._CONFIG_FILE)
+        self.connector= SSHConnector(self.server, port=config_mgr.daemon_port,
+                                     username=config_mgr.daemon_username,
+                                     password=config_mgr.daemon_password)
         self.connector.connect()
         return self
 

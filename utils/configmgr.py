@@ -8,11 +8,11 @@ from .exceptions import InvalidConfigError
 from .logger import get_logger
 
 
-logger = get_logger('AuthMgr', level=logging.DEBUG)
+logger = get_logger('ConfigMgr', level=logging.DEBUG)
 
 
-class AuthMgr:
-    """Read and store authentication data for SSH connections."""
+class ConfigMgr:
+    """Read and store config data needed for testing"""
 
     _CONFIG_FILE_ = path.join(path.dirname(__name__), 'config.ini')
 
@@ -20,11 +20,12 @@ class AuthMgr:
         """Initialize class members"""
 
         if config_file is None:
-            config_file = AuthMgr._CONFIG_FILE_
+            config_file = ConfigMgr._CONFIG_FILE_
         self.config = self._read_config(config_file) 
 
         self.server_username = self.config.get('server', 'username')
         self.server_password = self.config.get('server', 'password')
+        self.server_testdir = self.config.get('server', 'testdir')
 
         self.daemon_username = self.config.get('daemon', 'username')
         self.daemon_password = self.config.get('daemon', 'password')
@@ -45,4 +46,8 @@ class AuthMgr:
         return config
 
     def __str__(self):
-        return 'server_username:{}, server_password:{}, daemon_usernmae:{}, daemon_password:{}, daemon_port:{}'.format(self.server_username, self.server_password, self.daemon_username, self.daemon_password, self.daemon_port)
+        fmt = 'server_username:{}, server_password:{}, server_testdir: {}, '\
+              'daemon_usernmae:{}, daemon_password:{}, daemon_port:{}'
+        return fmt.format(self.server_username, self.server_password,
+                          self.server_testdir, self.daemon_username,
+                          self.daemon_password, self.daemon_port)

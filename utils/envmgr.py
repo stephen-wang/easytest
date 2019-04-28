@@ -27,12 +27,18 @@ class EnvMgr(object):
         return ''.join([prefix, chars, nums])
 
     @staticmethod
-    def deploy_agents(servers, username, password):
-        """Copy easytest agent scripts to newly created directory on target servers """
+    def deploy_agents(servers, username, password, server_dir=None):
+        """Copy easytest agent scripts to newly created directory on target
+        servers.
+        """
 
         logger.info('Start to deploy agent scripts')
-        agent_dir = path.join(EnvMgr._SERVER_DIR_, 'easytest_agent')
-        agent_utils_dir = path.join(EnvMgr._SERVER_DIR_, 'easytest_agent/utils')
+
+        if server_dir is None:
+            server_dir = EnvMgr._SERVER_DIR
+
+        agent_dir = path.join(server_dir, 'easytest_agent')
+        agent_utils_dir = path.join(server_dir, 'easytest_agent/utils')
 
         mode = (stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP \
                 | stat.S_IROTH | stat.S_IXOTH)
@@ -61,7 +67,8 @@ class EnvMgr(object):
                             path.join(agent_dir, 'remoterun.py'))
 
                 # deploy config file
-                local_conf = path.join(path.dirname(path.abspath(__name__)), 'config.ini')
+                local_conf = path.join(path.dirname(path.abspath(__name__)),
+                                                    'config.ini')
                 remote_conf = path.join(agent_dir, 'config.ini')
                 logger.info('Copy %s to %s:%s', local_conf, server, remote_conf)
                 sftp.put(local_conf, remote_conf)
@@ -70,12 +77,15 @@ class EnvMgr(object):
         return agent_dir
 
     @staticmethod
-    def deploy_tests(test_files, servers, username, password):
+    def deploy_tests(test_files, servers, username, password, server_dir=None):
         """Copy test scripts to newly created directory on target servers """
 
         logger.info('Start to deploy test scripts')
-        remote_dir = path.join(EnvMgr._SERVER_DIR_,
-                               EnvMgr.get_unique_name())
+
+        if server_dir is None:
+            server_dir = EnvMgr._SERVER_DIR
+
+        remote_dir = path.join(server_dir, EnvMgr.get_unique_name())
         mode = (stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP \
                 | stat.S_IROTH | stat.S_IXOTH)
         for server in servers:

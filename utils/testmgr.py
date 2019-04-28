@@ -6,7 +6,7 @@ import socket
 import threading
 import time
 
-from .authmgr import AuthMgr
+from .configmgr import ConfigMgr
 from .envmgr import EnvMgr
 from .exceptions import InvalidArgumentError
 from .logger import get_logger
@@ -35,7 +35,7 @@ class TestMgr(object):
         self.daemon = None
         self.daemon_ip = socket.gethostbyname(socket.gethostname())
 
-        self.auth_mgr = AuthMgr()
+        self.config_mgr = ConfigMgr()
 
     def check_server_connectivity(self):
         """Check if requested server is reachable"""
@@ -45,8 +45,8 @@ class TestMgr(object):
         for server in self.servers:
             try:
                 with SSHClient(server=server,
-                               username=self.auth_mgr.server_username,
-                               password=self.auth_mgr.server_password):
+                               username=self.config_mgr.server_username,
+                               password=self.config_mgr.server_password):
                    pass
             except Exception as e:
                 invalid_servers[server] = str(e)
@@ -58,9 +58,9 @@ class TestMgr(object):
     def start_daemon(self, msg_handler):
         logger.info('Start easytest daemon ...')
         self.daemon = SSHServer(msg_handler=msg_handler,
-                                username=self.auth_mgr.daemon_username,
-                                password=self.auth_mgr.daemon_password,
-                                port=self.auth_mgr.daemon_port)
+                                username=self.config_mgr.daemon_username,
+                                password=self.config_mgr.daemon_password,
+                                port=self.config_mgr.daemon_port)
         t = threading.Thread(target=self.daemon.execute)
         t.setDaemon(True)
         t.start()
@@ -79,7 +79,7 @@ class TestMgr(object):
         logger.info('Start to run tests') 
         
         # Make sure all requested server are accessible
-        auth_mgr = AuthMgr() 
+        config_mgr = ConfigMgr() 
         self.check_server_connectivity()
 
         # Collect tests per uer input
@@ -99,16 +99,18 @@ class TestMgr(object):
 
             # Deploy eastest agent scripts to test servers
             self.remote_agent_dir = EnvMgr.deploy_agents(
-                                        self.servers,
-                                        username=self.auth_mgr.server_username,
-                                        password=self.auth_mgr.server_password)
+                                      self.servers,
+                                      username=self.config_mgr.server_username,
+                                      password=self.config_mgr.server_password,
+                                      server_dir=self.config_mgr.server_testdir)
 
             # Deploy test scripts to test servers
             tests = [t.abspath for t in self.testcases if \
                                      t.result == TestResult.NOTRUN]
             remote_test_dir = EnvMgr.deploy_tests(tests, self.servers,
-                                        username=self.auth_mgr.server_username,
-                                        password=self.auth_mgr.server_password)
+                                      username=self.config_mgr.server_username,
+                                      password=self.config_mgr.server_password,
+                                      server_dir=self.config_mgr.server_testdir)
 
             # Start daemon for syncing up status from test servers
             daemon_thread = self.start_daemon(result_mgr.sync_result)
@@ -122,8 +124,8 @@ class TestMgr(object):
                 logger.debug('Run tests on {}, cmd:{}'.format(server, cmd))
                 with SSHClient(
                         server=server,
-                        username=self.auth_mgr.server_username,
-                        password=self.auth_mgr.server_password) as ssh:
+                        username=self.config_mgr.server_username,
+                        password=self.config_mgr.server_password) as ssh:
                     ssh.exec_command('cd {}'.format(self.remote_agent_dir))
                     ssh.exec_command('nohup {} &'.format(cmd))
 
