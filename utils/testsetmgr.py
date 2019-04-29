@@ -27,6 +27,10 @@ class TestCase:
         self.parallel = False 
         self.result = TestResult.NOTRUN 
 
+        # Support bundle (contains log and potential coredump) of failed test
+        self.remote_failure_pack = None
+        self.local_failure_pack = None
+
     def add_group(self, group):
         self.groups.append(group)
 

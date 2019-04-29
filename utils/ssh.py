@@ -83,7 +83,7 @@ class SSHConnector(object):
 
 
     def close(self):
-        if self.transport and self.ransport.is_active():
+        if self.transport and self.transport.is_active():
             self.transport.close()
         self.logger.info('Disconnected from %s:%d', self.server, self.port)
 

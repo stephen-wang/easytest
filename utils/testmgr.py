@@ -82,6 +82,11 @@ class TestMgr(object):
         config_mgr = ConfigMgr() 
         self.check_server_connectivity()
 
+        # Initialize env manager
+        env_mgr = EnvMgr(self.servers, self.config_mgr.server_username,
+                         self.config_mgr.server_password,
+                         self.config_mgr.server_testdir)
+
         # Collect tests per uer input
         TermMgr.print_prompt('Collecting test scripts...')
         self.testcases = TestsetMgr.get_tests(self.tests, self.groups)
@@ -92,42 +97,37 @@ class TestMgr(object):
         TermMgr.print_prompt('Tests are running...')
         relpaths = [c.relpath for c in self.testcases]
         with TermMgr(relpaths) as tm:
-            result_mgr = ResultMgr(self.testcases, tm)
+            result_mgr = ResultMgr(self.testcases, tm, env_mgr)
 
             # Show skipped tests on terminal 
             result_mgr.sync_skipped_tests()
 
             # Deploy eastest agent scripts to test servers
-            self.remote_agent_dir = EnvMgr.deploy_agents(
-                                      self.servers,
-                                      username=self.config_mgr.server_username,
-                                      password=self.config_mgr.server_password,
-                                      server_dir=self.config_mgr.server_testdir)
+            self.remote_agent_dir = env_mgr.deploy_agents()
 
             # Deploy test scripts to test servers
             tests = [t.abspath for t in self.testcases if \
                                      t.result == TestResult.NOTRUN]
-            remote_test_dir = EnvMgr.deploy_tests(tests, self.servers,
-                                      username=self.config_mgr.server_username,
-                                      password=self.config_mgr.server_password,
-                                      server_dir=self.config_mgr.server_testdir)
+            remote_test_dir = env_mgr.deploy_tests(tests)
 
             # Start daemon for syncing up status from test servers
             daemon_thread = self.start_daemon(result_mgr.sync_result)
 
             # Start to run tests on all test servers
             logger.info('Begin to run tests ...')
+
+            fmt = 'cd {}; nohup {} --testdir {} --sync --server {} &'
+            agent_script = path.join(self.remote_agent_dir, 'remoterun.py')
+            cmd = fmt.format(self.remote_agent_dir, agent_script,
+                             remote_test_dir, self.daemon_ip)
+
             for server in self.servers:
-                agent_script = path.join(self.remote_agent_dir, 'remoterun.py')
-                fmt = '{} --testdir {} --sync --server {}'
-                cmd = fmt.format(agent_script, remote_test_dir, self.daemon_ip)
-                logger.debug('Run tests on {}, cmd:{}'.format(server, cmd))
                 with SSHClient(
                         server=server,
                         username=self.config_mgr.server_username,
                         password=self.config_mgr.server_password) as ssh:
-                    ssh.exec_command('cd {}'.format(self.remote_agent_dir))
-                    ssh.exec_command('nohup {} &'.format(cmd))
+                    logger.debug('Run tests on {}, cmd:{}'.format(server, cmd))
+                    ssh.exec_command(cmd)
 
             # Wait for all tests finish
             while not result_mgr.tests_done:

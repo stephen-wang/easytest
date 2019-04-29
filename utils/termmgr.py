@@ -111,18 +111,22 @@ class TermMgr:
         colored_status = TermOps.colored_text(color, status.value)
         return '[' + colored_status + ']'
 
-    def formatted_test_status_str(self, test, status):
+    def formatted_test_status_str(self, test, status, support_bundle=None):
         """Construct and return graceful output string like below:
 
                path/to/testscript1.py ------ [Running]
                path/to/testscript2.py ------ [Finished]
-               path/to/testscript3.py ------ [Failed]
+               path/to/testscript3.py ------ [Failed] --- /tmp/test_xx/xx.tar.gz
         """
 
         script_part = self.formatted_path_str(test)
         delim_part = self.formatted_delimiter_str(test)
         status_part = self.formatted_status_str(status)
-        return script_part + delim_part + status_part
+        if status == TestResult.FAILED and support_bundle is not None:
+            support_bundle_part = ' --- ' + support_bundle
+        else:
+            support_bundle_part = ''
+        return script_part + delim_part + status_part + support_bundle_part
 
     def move_up_position(self):
         """Reduce the stored line number by 1 """
@@ -170,7 +174,7 @@ class TermMgr:
         # Save current cursor position.
         self.save_cursor_pos()
 
-    def update_test_status(self, test, status):
+    def update_test_status(self, test, status, support_bundle=None):
         """Update test status to terminal"""
 
         # Invalid script, ignore it
@@ -188,7 +192,7 @@ class TermMgr:
         # Update test status
         logger.debug('Update test status (%s, %s), position (%d, %s)',
                      test, status.value, x, y)
-        msg = self.formatted_test_status_str(test, status)
+        msg = self.formatted_test_status_str(test, status, support_bundle)
         TermOps.print_at(x, y, msg)
 
         # Restore cursor position

@@ -5,6 +5,12 @@ import time
 
 
 class Message(object):
+    def __init__(self):
+        self.val = None
+
+    def __str__(self):
+        return self.val.decode()
+
     @staticmethod
     def build_msg(**kargs):
         msg = ''
@@ -31,18 +37,21 @@ class Message(object):
 
 
 class SyncMsg(Message):
+    """Sync-up message between easytest agent and aemon"""
 
     _MSG_INITIALIZED_ = False
     _MSGID_ = 0 
-    __slots__ = ['msgid', 'script', 'status', 'final_msg', 'val']
 
-    def __init__(self, script, status, final_msg=False, msgid=None):
+    def __init__(self, script, status, final_msg=False, msgid=None,
+                 support_bundle=None):
         self.script = script
         self.status = status
         self.final_msg = final_msg
         self.msgid = self.get_msgid() if msgid is None else msgid
-        self.val = self.build_msg(sync=self.msgid, script=script, status=status)
-                                        
+        self.support_bundle = support_bundle
+        self.val = self.build_msg(sync=self.msgid, script=script, status=status,
+                                  support_bundle=support_bundle)
+
     @classmethod
     def get_msgid(cls):
         if not cls._MSG_INITIALIZED_:
@@ -61,8 +70,12 @@ class SyncMsg(Message):
             final_msg = True
 
         return cls(msgid=content['sync'], script=content['script'],
-                   status=content['status'], final_msg=final_msg)
+                   status=content['status'], final_msg=final_msg,
+                   support_bundle=content['support_bundle'])
+
 
 class AckMsg(Message):
+    """Response to SyncMsg"""
+
     def __init__(self, msgid):
         self.val = self.build_msg(ack=msgid)
